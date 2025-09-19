@@ -10,7 +10,10 @@ import {
   findBook,
   searchBooks,
   deleteBooks,
-  aggregateBooks
+  filterBooksAfter2000,
+  getBooksAfter2000Fields,
+  unwindBookGenres,
+  joinBooksWithLogs
 } from "./modules/books/book.controller.js";
 
 import { addLog } from "./modules/logs/log.controller.js";
@@ -35,11 +38,14 @@ app.post("/collection/books/index", createBooksIndex);
 // ----------------- Book Endpoints  Question 5 to 19 except  7 -----------------
 app.post("/books", addBook);            
 app.post("/books/batch", addBooksBatch);
-app.post("/books/update", updateBook);  
-app.post("/books/find", findBook);      
+app.patch("/books/update", updateBook);  
+app.get("/books/find", findBook);      
 app.post("/books/search", searchBooks); 
 app.delete("/books", deleteBooks);      
-app.post("/books/aggregate", aggregateBooks); 
+app.post("/books/filter-after-2000", filterBooksAfter2000);
+app.post("/books/published-after-2000-fields", getBooksAfter2000Fields);
+app.post("/books/unwind-genres", unwindBookGenres);
+app.post("/books/join-with-logs", joinBooksWithLogs);
 
 // ----------------- Log Endpoint - Question 7 -----------------
 app.post("/logs", addLog);              

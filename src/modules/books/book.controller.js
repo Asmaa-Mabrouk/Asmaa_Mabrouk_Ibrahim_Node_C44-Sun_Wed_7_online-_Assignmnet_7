@@ -1,168 +1,125 @@
-import Book from "../../database/models/book.model.js";
-
-// Insert one book
-export const addBook = async (req, res) => {
-  try {
-    const { title, author, year, genres } = req.body;
-
-    if (!title || !author || !year) {
-      return res.status(400).json({ error: "title, author, and year are required" });
+import {
+    createBook,
+    createBooksBatch,
+    updateBookByFilter,
+    findBookByFilter,
+    searchBooksWithOptions,
+    deleteBooksByFilter,
+    aggregateBooksAfter2000,
+    aggregateBooksFieldsAfter2000,
+    aggregateUnwindGenres,
+    aggregateJoinBooksWithLogs
+  } from "./bookservices/book.services.js";
+  
+  // Insert one book
+  export const addBook = async (req, res) => {
+    try {
+      const book = await createBook(req.body);
+      res.status(201).json({ status: "success", message: "✅ Book added successfully", book });
+    } catch (err) {
+      res.status(400).json({ status: "error", message: err.message });
     }
-
-    const exists = await Book.findOne({ title, author, year, genres });
-    if (exists) {
-      return res.status(400).json({ error: "This book already exists" });
-    }
-
-    const book = new Book(req.body);
-    await book.save();
-    res.status(201).json({ message: "✅ Book added successfully", book });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Insert multiple books with duplicate or invalid tracking
-export const addBooksBatch = async (req, res) => {
-  try {
-    if (!Array.isArray(req.body) || req.body.length === 0) {
-      return res.status(400).json({ error: "Body must be a non-empty array" });
-    }
-
-    const insertedBooks = [];
-    const skippedBooks = [];
-
-    for (const bookData of req.body) {
-      const { title, author, year, genres } = bookData;
-
-      // Validation: required fields
-      if (!title || !author || !year) {
-        skippedBooks.push({ ...bookData, reason: "Missing required fields" });
-        continue;
-      }
-
-      // Check for duplicate
-      const exists = await Book.findOne({ title, author, year, genres });
-      if (exists) {
-        skippedBooks.push({ ...bookData, reason: "Duplicate book" });
-        continue;
-      }
-      const book = new Book(bookData);
-      await book.save();
-      insertedBooks.push(book);
-    }
-
-    res.status(201).json({
-      message: "Batch insert completed",
-      insertedCount: insertedBooks.length,
-      skippedCount: skippedBooks.length,
-      insertedBooks,
-      skippedBooks
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Update book
-export const updateBook = async (req, res) => {
-  try {
-    const { filter, update } = req.body;
-    if (!filter || !update) {
-      return res.status(400).json({ error: "filter and update are required" });
-    }
-
-    const updated = await Book.findOneAndUpdate(filter, { $set: update }, { new: true });
-    if (!updated) return res.status(404).json({ error: "Book not found" });
-
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Find book
-export const findBook = async (req, res) => {
-  try {
-    const { filter } = req.body;
-    if (!filter) {
-      return res.status(400).json({ error: "Request must include a filter object" });
-    }
-
-    const book = await Book.findOne(filter);
-    if (!book) return res.status(404).json({ error: "No book found" });
-
-    res.json(book);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Search books
-export const searchBooks = async (req, res) => {
-  try {
-    const { filter = {}, options = {} } = req.body;
-
-    const books = await Book.find(filter)
-      .sort(options.sort || {})
-      .skip(options.skip || 0)
-      .limit(options.limit || 0);
-
-    res.json(books);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Delete books
-export const deleteBooks = async (req, res) => {
-  try {
-    const { filter } = req.body;
-    if (!filter) return res.status(400).json({ error: "Filter required" });
-
-    const result = await Book.deleteMany(filter);
-    res.json({ deleted: result.deletedCount });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Aggregate books
-export const aggregateBooks = async (req, res) => {
-  try {
-    if (!Array.isArray(req.body) || req.body.length === 0) {
-      return res.status(400).json({
-        error: "Aggregation must be a non-empty array"
+  };
+  
+  // Insert multiple books
+  export const addBooksBatch = async (req, res) => {
+    try {
+      const result = await createBooksBatch(req.body);
+      res.status(201).json({
+        status: result.overallStatus,
+        message: "Batch insert completed",
+        insertedCount: result.insertedBooks.length,
+        skippedCount: result.skippedBooks.length,
+        insertedBooks: result.insertedBooks,
+        skippedBooks: result.skippedBooks
       });
+    } catch (err) {
+      res.status(400).json({ status: "error", message: err.message });
     }
-    for (const stage of req.body) {
-      if (typeof stage !== "object" || stage === null) {
-        return res.status(400).json({
-          error: "stage must be a valid object"
-        });
-      }
-      const keys = Object.keys(stage);
-      if (keys.length !== 1 || !keys[0].startsWith("$")) {
-        return res.status(400).json({
-          error: "Each stage must contain exactly one key starting with $"
-        });
-      }
+  };
+  
+  // Update book
+  export const updateBook = async (req, res) => {
+    try {
+      const { filter, update } = req.body;
+      const updated = await updateBookByFilter(filter, update);
+      res.json({ status: "success", updated });
+    } catch (err) {
+      res.status(400).json({ status: "error", message: err.message });
     }
-    // Run aggregation directly
-    const result = await Book.aggregate(req.body);
-
-    res.json({
-      message: "✅ Aggregation executed successfully",
-      count: result.length,
-      result
-    });
-  } catch (err) {
-    console.error("Aggregation error:", err.message);
-    res.status(500).json({
-      error: "Aggregation failed",
-      details: err.message
-    });
-  }
-};
-
-
+  };
+  
+  // Find book
+  export const findBook = async (req, res) => {
+    try {
+      const { filter } = req.body;
+      const book = await findBookByFilter(filter);
+      res.json({ status: "success", book });
+    } catch (err) {
+      res.status(404).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Search books
+  export const searchBooks = async (req, res) => {
+    try {
+      const { filter = {}, options = {} } = req.body;
+      const books = await searchBooksWithOptions(filter, options);
+      res.json({ status: "success", count: books.length, books });
+    } catch (err) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Delete books
+  export const deleteBooks = async (req, res) => {
+    try {
+      const { filter } = req.body;
+      const deletedCount = await deleteBooksByFilter(filter);
+      res.json({ status: "success", deleted: deletedCount });
+    } catch (err) {
+      res.status(400).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Question 16: Filter books published after 2000 and sort by year descending
+  export const filterBooksAfter2000 = async (req, res) => {
+    try {
+      const { year = 2000 } = req.body;
+      const result = await aggregateBooksAfter2000(year);
+      res.json({ status: "success", count: result.length, result });
+    } catch (err) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Question 17: Find books published after 2000, show only title, author, and year
+  export const getBooksAfter2000Fields = async (req, res) => {
+    try {
+      const { year = 2000 } = req.body;
+      const result = await aggregateBooksFieldsAfter2000(year);
+      res.json({ status: "success", count: result.length, result });
+    } catch (err) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Question 18: Break an array of genres into separate documents  
+  export const unwindBookGenres = async (req, res) => {
+    try {
+      const result = await aggregateUnwindGenres();
+      res.json({ status: "success", count: result.length, result });
+    } catch (err) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+  
+  // Question 19: Join books collection with logs collection
+  export const joinBooksWithLogs = async (req, res) => {
+    try {
+      const result = await aggregateJoinBooksWithLogs();
+      res.json({ status: "success", count: result.length, result });
+    } catch (err) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
