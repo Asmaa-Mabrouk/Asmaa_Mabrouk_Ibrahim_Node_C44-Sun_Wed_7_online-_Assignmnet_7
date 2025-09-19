@@ -1,0 +1,23 @@
+{
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.21.2",
+    "mongodb": "^6.0.0",
+    "mongoose": "^8.18.1"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "name": "asmaa_mabrouk_ibrahim_node_c44-sun_wed_7_online-_assignmnet_7",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
