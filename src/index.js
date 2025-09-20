@@ -10,8 +10,8 @@ import {
   findBook,
   searchBooks,
   deleteBooks,
-  filterBooksAfter2000,
-  getBooksAfter2000Fields,
+  filterBooksAfterYear,
+  getBooksAfterUserYearFields,
   unwindBookGenres,
   joinBooksWithLogs
 } from "./modules/books/book.controller.js";
@@ -42,8 +42,8 @@ app.patch("/books/update", updateBook);
 app.get("/books/find", findBook);      
 app.post("/books/search", searchBooks); 
 app.delete("/books", deleteBooks);      
-app.post("/books/filter-after-2000", filterBooksAfter2000);
-app.post("/books/published-after-2000-fields", getBooksAfter2000Fields);
+app.post("/books/filter-after-year", filterBooksAfterYear);
+app.post("/books/published-after-year-fields", getBooksAfterUserYearFields);
 app.post("/books/unwind-genres", unwindBookGenres);
 app.post("/books/join-with-logs", joinBooksWithLogs);
 

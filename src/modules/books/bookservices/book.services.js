@@ -58,6 +58,8 @@ export const updateBookByFilter = async (filter, update) => {
 // Find one book
 export const findBookByFilter = async (filter) => {
   if (!filter) throw new Error("Filter object is required");
+  if (typeof filter !== "object") throw new Error("Filter must be a non-empty object");
+  if (Object.keys(filter).length === 0) throw new Error("Filter must be a valid object"); 
   const book = await Book.findOne(filter);
   if (!book) throw new Error("No book found");
   return book;
@@ -65,21 +67,44 @@ export const findBookByFilter = async (filter) => {
 
 // Search books
 export const searchBooksWithOptions = async (filter = {}, options = {}) => {
-  return await Book.find(filter)
+  if (typeof filter !== "object") throw new Error("Filter must be a non-empty object");
+  if (typeof options !== "object") throw new Error("Options must be a non-empty object");
+  
+  const books = await Book.find(filter)
     .sort(options.sort || {})
     .skip(options.skip || 0)
     .limit(options.limit || 0);
+    
+  return books;
 };
 
 // Delete books
 export const deleteBooksByFilter = async (filter) => {
   if (!filter) throw new Error("Filter required");
+  if (typeof filter !== "object") throw new Error("Filter must be a non-empty object");
+  if (Object.keys(filter).length === 0) throw new Error("Filter must be a valid object");
   const result = await Book.deleteMany(filter);
+  if (result.deletedCount === 0) throw new Error("No books found");
   return result.deletedCount;
 };
 
 // Filter books published after 2000 and sort by year descending
-export const aggregateBooksAfter2000 = async (year = 2000) => {
+export const aggregateBooksAfterYear = async (year) => {
+  // Validation - year is required from user
+  if (year === undefined || year === null) {
+    throw new Error("Year is required");
+  }
+  if (typeof year !== "number") {
+    throw new Error("Year must be a number");
+  }
+  const currentYear = new Date().getFullYear();
+  if (year < 1000) {
+    throw new Error("Year must be greater than or equal to 1000");
+  }
+  if (year > currentYear) {
+    throw new Error(`Year cannot be greater than current year (${currentYear})`);
+  }
+  
   return await Book.aggregate([
     { $match: { year: { $gt: year } } },
     { $sort: { year: -1 } }
@@ -87,10 +112,21 @@ export const aggregateBooksAfter2000 = async (year = 2000) => {
 };
 
 // Find books published after 2000, show only title, author, and year
-export const aggregateBooksFieldsAfter2000 = async (year = 2000) => {
+export const aggregateBooksFieldsAfterUserYear = async (year) => {
+  if (!year) {
+    throw new Error("Year is required");
+  }
+  if (typeof year !== "number") {
+    throw new Error("Year must be a number");
+  }
+  const currentYear = new Date().getFullYear();
+  if (year < 1000 || year > currentYear) {
+    throw new Error(`Year must be between 1000 and ${currentYear}`);
+  }
   return await Book.aggregate([
     { $match: { year: { $gt: year } } },
-    { $project: { _id: 0, title: 1, author: 1, year: 1 } }
+    { $project: { _id: 0, title: 1, author: 1, year: 1 } },
+    { $sort: { year: -1 } }
   ]);
 };
 
